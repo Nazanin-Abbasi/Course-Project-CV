@@ -1,5 +1,7 @@
 import numpy as np
 
+from read_png import read_png_to_np
+
 
 def frame_to_point_cloud(frame, scale=1.0):
     """
@@ -24,12 +26,30 @@ def frame_to_point_cloud(frame, scale=1.0):
     point_cloud = np.vstack((x_flat, y_flat, z_flat)).T
     return point_cloud
 
+def remove_points_below_z(point_cloud, z_threshold=10):
+    """
+    Remove points from a point cloud where the z-coordinate is less than a given threshold.
+
+    Parameters:
+    - point_cloud (np.ndarray): Point cloud of shape (n, 3) with (x, y, z) coordinates.
+    - z_threshold (float): Threshold for the z-coordinate. Points with z < threshold will be removed.
+
+    Returns:
+    - filtered_point_cloud (np.ndarray): Point cloud with points removed where z < threshold.
+    """
+    # Filter the point cloud based on the z-coordinate threshold
+    filtered_point_cloud = point_cloud[point_cloud[:, 2] >= z_threshold]
+    return filtered_point_cloud
+
+
 
 # Example usage
-np.random.seed(42)
-depth_frame = np.random.rand(10, 10) * 10  # Example 10x10 "depth" frame
-point_cloud = frame_to_point_cloud(depth_frame, scale=1)
+# np.random.seed(42)
+# depth_frame = np.random.rand(10, 10) * 10  # Example 10x10 "depth" frame
 
-# Print the result
-print("Point Cloud Shape:", point_cloud.shape)  # Should be (100, 3)
-print("Sample Points:\n", point_cloud)  # Display the first 5 points
+
+
+
+# # Print the result
+# print("Point Cloud Shape:", point_cloud.shape)  # Should be (100, 3)
+# print("Sample Points:\n", point_cloud)  # Display the first 5 points
