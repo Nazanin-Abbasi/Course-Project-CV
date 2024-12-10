@@ -25,15 +25,20 @@ def read_png_to_np(filename):
     return original_depth.astype("float32")
 
 
-# f = read_png_to_np("ukulele2_frames/frame_71.png")
+# for i in range(56):
+#     print(i)
+#     formatted_number = f"{i:06d}"
+#     # file = f"41ce0692a2/depth/{formatted_number}.png"
+#     # a9cdfb67aa
+#     file = f"a9cdfb67aa/depth/{formatted_number}.png"
+#     f = read_png_to_np(file)
 
+#     display_frame = cv2.normalize(f, None, 0, 255, cv2.NORM_MINMAX)
+#     display_frame = display_frame.astype("uint8")
 
-# display_frame = cv2.normalize(f, None, 0, 255, cv2.NORM_MINMAX)
-# display_frame = display_frame.astype("uint8")
+#     # Show the restored frame
+#     cv2.imshow("Restored Frame", display_frame)
 
-# # Show the restored frame
-# cv2.imshow("Restored Frame", display_frame)
-
-# # Wait for a key press and then close the window
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
+#     # Wait for a key press and then close the window
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()

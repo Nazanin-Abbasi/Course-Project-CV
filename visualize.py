@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
+
 def visualize_3d_scatter(point_cloud, percentage=100):
     """
     Visualize a 3D point cloud using Matplotlib's 3D scatter plot.

@@ -33,12 +33,13 @@ def compute_transformation(P, Q):
 
 def apply_transformation(cloud, r, t):
     # Ensure t is a (1, 3) vector for broadcasting
+    # print(cloud.shape)
+    # print(t.shape)
     t = t.reshape(1, 3)
     # Apply rotation and translation
-    transformed_point_cloud = np.dot(cloud, r.T) + t
+    # transformed_point_cloud = np.dot(cloud, r.T) + t
+    transformed_point_cloud = cloud @ r.T + t
     return transformed_point_cloud
-
-
 
 
 # # Generate random 3D points

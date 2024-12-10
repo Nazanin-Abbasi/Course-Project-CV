@@ -3,6 +3,7 @@ from scipy.spatial import cKDTree
 
 np.set_printoptions(precision=15)
 
+
 def find_closest_point(reference_point_cloud, other_point_cloud, option="np"):
     """
     Find correspondences between two point clouds by finding the closest point
@@ -21,7 +22,7 @@ def find_closest_point(reference_point_cloud, other_point_cloud, option="np"):
         tree = cKDTree(reference_point_cloud)
         distances, indices = tree.query(other_point_cloud)
         return np.array(indices), np.array(distances)
-    
+
     elif option == "np":
         # For manual implementation, we'll use a brute force method
         indices = []
@@ -29,10 +30,43 @@ def find_closest_point(reference_point_cloud, other_point_cloud, option="np"):
 
         for p2 in other_point_cloud:
             # Compute distances from p1 to all points in point_cloud2
-            dist = np.linalg.norm(reference_point_cloud - p2, axis=1)  # Euclidean distance
+            dist = np.linalg.norm(
+                reference_point_cloud - p2, axis=1
+            )  # Euclidean distance
             closest_idx = np.argmin(dist)  # Find the index of the minimum distance
             indices.append(closest_idx)
             distances.append(dist[closest_idx])
 
+        return np.array(indices), np.array(distances)
+    return None
+
+
+def find_closest_point_color(
+    reference_point_cloud, other_point_cloud, weight_rgb=0.5, option="ckd"
+):
+    if option == "ckd":
+        combined_reference = np.hstack(
+            (reference_point_cloud[:, :3], weight_rgb * reference_point_cloud[:, 3:])
+        )
+        combined_target = np.hstack(
+            (other_point_cloud[:, :3], weight_rgb * other_point_cloud[:, 3:])
+        )
+        tree = cKDTree(combined_reference)
+        distances, indices = tree.query(combined_target)
+        return indices, distances
+    elif option == "np":
+        combined_reference = np.hstack(
+            (reference_point_cloud[:, :3], weight_rgb * reference_point_cloud[:, 3:])
+        )
+        combined_target = np.hstack(
+            (other_point_cloud[:, :3], weight_rgb * other_point_cloud[:, 3:])
+        )
+        indices = []
+        distances = []
+        for target_point in combined_target:
+            dist = np.linalg.norm(combined_reference - target_point, axis=1)
+            closest_idx = np.argmin(dist)
+            indices.append(closest_idx)
+            distances.append(dist[closest_idx])
         return np.array(indices), np.array(distances)
     return None
