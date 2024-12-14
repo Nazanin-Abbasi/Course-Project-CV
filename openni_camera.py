@@ -47,7 +47,7 @@ def open_oni_file(filename: str) -> openni2.Device:
     return openni2.Device.open_file(filename_as_bytes)
 
 
-def read_from_device(device: openni2.Device, stream_type: StreamType, freq: int) -> [NDArray, NDArray]:
+def read_from_device(device: openni2.Device, stream_type: StreamType, freq: int = 0, ref_timestamps=None) -> [NDArray, NDArray]:
     """
     Read from an OpenNI file device.
 
@@ -83,10 +83,20 @@ def read_from_device(device: openni2.Device, stream_type: StreamType, freq: int)
 
     # Iterate through all the frames, extract them and convert them to `NDArrays`.
     for i in range(playback_support.get_number_of_frames(stream)):
-        if i % freq == 0:
-            frame = stream.read_frame()
+        frame = stream.read_frame()
+        stream.get_horizontal_fov()
+        if freq == 0 or i % freq == 0:
             timestamps.append(frame.timestamp)
             stream_outputs.append(convert_frame_to_numpy_array(frame, stream_type))
+
+    if ref_timestamps is not None:
+        new_stream_outputs = []
+        timestamps = np.array(timestamps)
+        for t in ref_timestamps:
+            diff = np.abs(timestamps-t)
+            new_stream_outputs.append(stream_outputs[np.argmin(diff)])
+
+        stream_outputs = new_stream_outputs
 
     # Merge all frames into one NDArray
     return np.stack(stream_outputs, axis=0), np.array(timestamps)
@@ -176,20 +186,22 @@ import os
 from pathlib import Path
 if __name__ == "__main__":
     initialise()
-    directory = "C:\\Users\\jclav\\Desktop\\McGill\\COMP558_CompVision\\final project\Data\\"
+    directory = "Data\\"
     for filename in os.listdir(directory):
         f = os.path.join(directory, filename)
         # checking if it is a file
         if not os.path.isfile(f):
             continue
         device = open_oni_file(f)
-        x, t = read_from_device(device, StreamType.COLOUR_STREAM, freq=4)
+        x, t = read_from_device(device, StreamType.DEPTH_STREAM, freq=4)
+        device.close()
+        device = open_oni_file(f)
+        x2, t = read_from_device(device, StreamType.COLOUR_STREAM, ref_timestamps=t)
+
         # x, t = read_from_device(device, StreamType.COLOUR_STREAM, freq=4) # need to comment this part because can't open the same stream twice
 
         new_dir = f[:-4]
         Path(new_dir).mkdir(parents=True, exist_ok=True)
-        np.save(new_dir+"\\color.npy", x)
-        np.save(new_dir+"\\color_timesteps.npy", t)
-        # np.save(new_dir+"\\depth.npy", x)
-        # np.save(new_dir+"\\depth_timesteps.npy", t)
+        np.save(new_dir+"\\depth.npy", x)
+        np.save(new_dir+"\\color.npy", x2)
 

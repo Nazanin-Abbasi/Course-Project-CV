@@ -1,67 +1,12 @@
-import time
-import cv2
-from matplotlib import pyplot as plt
 import numpy as np
-from extract_point_cloud import (
-    frame_to_point_cloud,
-    frame_to_point_cloud_color,
-    frame_to_point_cloud_color_np,
-    normalize_point_cloud_by_dimension,
-    normalize_point_cloud_by_dimension_with_rgb,
-    pixel_to_camera_coords,
-    remove_points_above_z,
-    remove_points_below_z,
-)
-from find_closest_point import find_closest_point, find_closest_point_color
-from read_png import read_png_to_np
+
+from find_closest_point import find_closest_point
 from solve_rt import apply_transformation, compute_transformation
-from visualize import downsample_point_cloud_percentage, visualize_3d_scatter
+from visualize import (visualize_3d_scatter,
+                       visualize_3d_scatter_groups,
+                       visualize_3d_scatter_colorized)
 
 np.set_printoptions(precision=15)
-filename = "Data/new_batch/160middleclose_depth.npy"
-color_filename = "Data/new_batch/160middleclose_color.npy"
-
-depth_frames = np.load(filename)
-depth_frames = [depth_frames[i, 10:78, 50:120] for i in range(depth_frames.shape[0])]
-
-color_frames = np.load(color_filename)
-color_frames = [color_frames[i, 10:78, 50:120] for i in range(color_frames.shape[0])]
-
-# point_clouds = [
-#     frame_to_point_cloud(
-#         depth_frame,
-#     )
-#     for depth_frame in depth_frames
-# ]
-
-point_clouds = [
-    frame_to_point_cloud_color_np(depth_frame, color_frame)
-    for depth_frame, color_frame in zip(depth_frames, color_frames)
-]
-
-point_clouds = [
-    remove_points_below_z(point_cloud, z_threshold=3500) for point_cloud in point_clouds
-]
-point_clouds = [
-    remove_points_above_z(point_cloud, z_threshold=6000) for point_cloud in point_clouds
-]
-
-
-point_clouds = [pixel_to_camera_coords(point_cloud) for point_cloud in point_clouds]
-
-point_clouds = [
-    normalize_point_cloud_by_dimension_with_rgb(point_cloud)
-    for point_cloud in point_clouds
-]
-
-# point_clouds
-# 14,35
-point_clouds = [point_clouds[i] for i in range(14, 35)]
-pairs = [
-    (point_clouds[i][:, :3], point_clouds[i + 1][:, :3])
-    for i in range(len(point_clouds) - 1)
-]
-
 
 def downsample_to_equal_points(pc1, pc2, target_size=None):
     """
@@ -109,7 +54,7 @@ def ransac_icp(pc1, pc2):
         r, t = compute_transformation(pc1_temp, reordered_reference)
         pc1_trans = apply_transformation(pc1, r, t)
         idx, d = find_closest_point(pc2, pc1_trans, option="ckd")
-        concencus_indices = np.where(d <= 0.01)[0]
+        concencus_indices = np.where(d <= 10)[0]
         if len(concencus_indices) > max_concencus:
             max_concencus = len(concencus_indices)
             max_concencus_set = idx[concencus_indices]
@@ -124,42 +69,57 @@ def icp(pc1, pc2):
     return compute_transformation(pc1, reordered_reference)
 
 
-outputs = []
-c = 0
-for pc1, pc2 in pairs:
-    print(c)
-    c += 1
-    R_total = np.eye(3)  # 3x3 Identity matrix (no rotation)
-    t_total = np.zeros(3)  # 3x1 Zero vector (no translation)
-    p1 = pc1.copy()
-    p2 = pc2.copy()
-    for i in range(100):
-        r, t = ransac_icp(p1, p2)
-        # print(r, t)
-        # r, t = icp(p, pc2)
-        p1 = apply_transformation(p1, r, t)
-        # Accumulate the transformation
-        R_total = r @ R_total  # Multiply rotations (right-multiply)
-        t_total = (
-            r @ t_total
-        ) + t  # Apply translation (rotate and then add translation)
-    # Store the accumulated rotation and translation
-    outputs.append((R_total, t_total))
-    # visualize_3d_scatter(np.vstack((p1, p2)), percentage=100)
+def remove_furthest_points(p1, p2, percentage=10):
+    idx1, d1 = find_closest_point(p2, p1, "ckd")
+    idx2, d2 = find_closest_point(p1, p2, "ckd")
+    top_n1 = max(1, int(len(d1) * percentage/100))
+    top_n2 = max(1, int(len(d2) * percentage/100))
 
-pc_d = {index: value for index, value in enumerate(point_clouds)}
-
-for key in list(pc_d.keys()):
-    for i in range(len(outputs)):
-        if key <= i:
-            r, t = outputs[i]
-            pc_d[key][:, :3] = apply_transformation(pc_d[key][:, :3], r, t)
+    indexes1 = np.argsort(d1)[:-top_n1]
+    indexes2 = np.argsort(d2)[:-top_n2]
+    return p1[indexes1, :], p2[indexes2, :]
 
 
-pcs = np.vstack(list(pc_d.values()))
-print(pcs.shape)
-# print(pcs.shape)
-# np.save("frog_point_cloud_dec_9.npy", pcs)
+def run_icp(point_clouds):
+    print("Starting ICP")
+    pairs = [
+        (point_clouds[i][:, :3], point_clouds[i + 1][:, :3])
+        for i in range(len(point_clouds) - 1)
+    ]
 
-point_cloud = pcs
-visualize_3d_scatter(pcs, percentage=10)
+    outputs = []
+    c = 1
+    for pc1, pc2 in pairs:
+        print(f"{c}/{len(pairs)}")
+        c += 1
+        R_total = np.eye(3)
+        t_total = np.zeros(3)
+        first = True
+        for mega_iter in range(3):
+            p1 = pc1.copy()
+            p2 = pc2.copy()
+            p1 = apply_transformation(p1, R_total, t_total)
+            if not first:
+                p1, p2 = remove_furthest_points(p1, p2, mega_iter * 5)
+            for iter in range(10):
+                repeats = 4
+                if first:
+                    repeats = 10
+                    first = False
+                for i in range(repeats):
+                    r, t = icp(p1, p2)
+                    p1 = apply_transformation(p1, r, t)
+                    R_total = r @ R_total
+                    t_total = (r @ t_total) + t
+                p1, p2 = remove_furthest_points(p1, p2, 2)
+        outputs.append((R_total, t_total))
+
+    pc_d = {index: value for index, value in enumerate(point_clouds)}
+
+    for key in list(pc_d.keys()):
+        for i in range(len(outputs)):
+            if key <= i:
+                r, t = outputs[i]
+                pc_d[key][:, :3] = apply_transformation(pc_d[key][:, :3], r, t)
+
+    return list(pc_d.values())

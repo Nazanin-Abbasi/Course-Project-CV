@@ -21,8 +21,89 @@ def visualize_3d_scatter(point_cloud, percentage=100):
     x, y, z = point_cloud[:, 0], point_cloud[:, 1], point_cloud[:, 2]
 
     # Scatter plot
-    scatter = ax.scatter(x, y, z, c=z, cmap="viridis", s=1)
+    scatter = ax.scatter(x, y, z, c=z, cmap="viridis", s=2)
+    ax.set_aspect('equal')
     fig.colorbar(scatter, ax=ax, label="Depth (Z)")
+
+    # Labels and limits
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    ax.set_title("3D Point Cloud Visualization")
+
+    plt.show()
+
+
+
+def visualize_3d_scatter_colorized(point_cloud, percentage=100):
+    """
+    Visualize a 3D point cloud using Matplotlib's 3D scatter plot.
+
+    Parameters:
+    - point_cloud (np.ndarray): Point cloud of shape (n, 3) with (x, y, z) coordinates.
+
+    Returns:
+    - None
+    """
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection="3d")
+    point_cloud = downsample_point_cloud_percentage(point_cloud, percentage)
+
+    # Unpack the point cloud
+    x, y, z = point_cloud[:, 0], point_cloud[:, 1], point_cloud[:, 2]
+    color = point_cloud[:, 3:]
+
+
+    # Scatter plot
+    scatter = ax.scatter(x, y, z, c=color, s=1)
+    ax.set_aspect('equal')
+
+    # Labels and limits
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    ax.set_title("3D Point Cloud Visualization")
+
+    plt.show()
+
+
+import matplotlib.colors as mcolors
+import random
+
+def generate_random_colors(n):
+    colors = []
+    for i in range(n):
+        hue = i / n  # Distribute hues evenly
+        lightness = random.uniform(0.4, 0.6)  # Moderate lightness
+        saturation = random.uniform(0.7, 0.9)  # High saturation
+        rgb = mcolors.hsv_to_rgb((hue, saturation, lightness))
+        colors.append(rgb)
+    return colors
+
+def visualize_3d_scatter_groups(point_clouds, percentage=100):
+    """
+    Visualize a 3D point cloud using Matplotlib's 3D scatter plot.
+
+    Parameters:
+    - point_cloud (np.ndarray): Point cloud of shape (n, 3) with (x, y, z) coordinates.
+
+    Returns:
+    - None
+    """
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection="3d")
+
+    colors = generate_random_colors(len(point_clouds))
+
+    for color, point_cloud in zip(colors, point_clouds):
+        point_cloud = downsample_point_cloud_percentage(point_cloud, percentage)
+
+        # Unpack the point cloud
+        x, y, z = point_cloud[:, 0], point_cloud[:, 1], point_cloud[:, 2]
+
+        # Scatter plot
+        scatter = ax.scatter(x, y, z, c=color, s=1)
+    ax.set_aspect('equal')
 
     # Labels and limits
     ax.set_xlabel("X")

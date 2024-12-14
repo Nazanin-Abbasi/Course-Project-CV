@@ -1,8 +1,7 @@
 import cv2
 import numpy as np
 
-from read_png import read_png_to_np
-from solve_rt import apply_transformation
+from remove_plane import remove_under_plane, identify_plane
 
 
 def frame_to_point_cloud(frame, scale=1.0):
@@ -64,12 +63,19 @@ def frame_to_point_cloud_color(depth_frame, rgb_frame, scale=1.0):
     return point_cloud
 
 
-def frame_to_point_cloud_color_np(depth_frame, rgb_frame, scale=1.0):
+def frame_to_point_cloud_color_np(depth_frame, rgb_frame, crop):
+    if crop is None:
+        x_shift = 0
+        y_shift = 0
+    else:
+        x_shift = crop[1][0]
+        y_shift = crop[0][0]
+
     n, m = depth_frame.shape
     x_coords, y_coords = np.meshgrid(np.arange(m), np.arange(n))
-    x_flat = x_coords.flatten() * scale
-    y_flat = y_coords.flatten() * scale
-    z_flat = depth_frame.flatten() * scale
+    x_flat = x_coords.flatten() + x_shift
+    y_flat = y_coords.flatten() + y_shift
+    z_flat = depth_frame.flatten()
     rgb_flat = rgb_frame.reshape(-1, 3) / 255.0  # Normalize RGB to [0, 1]
     point_cloud = np.hstack((np.vstack((x_flat, y_flat, z_flat)).T, rgb_flat))
     return point_cloud
@@ -133,26 +139,23 @@ def normalize_point_cloud_by_dimension_with_rgb(points_with_rgb):
     return normalized_points_with_rgb
 
 
-def pixel_to_camera_coords(point_cloud):
-    f_x = 500
-    f_y = 500
-    c_x = 80
-    c_y = 60
+def clean_up_point_clouds(point_clouds, min_threshold=None, max_threshold=None, remove_plane=True, depth_frame=None):
+    if min_threshold is not None:
+        point_clouds = [
+            remove_points_below_z(point_cloud, z_threshold=min_threshold) for point_cloud in point_clouds
+        ]
 
-    # Create the intrinsic matrix K
-    K = np.array([[f_x, 0, c_x], [0, f_y, c_y], [0, 0, 1]])
-    K = np.linalg.inv(K)
-    # Convert to homogenous
-    d = point_cloud[:, 2]
-    # print(d)
-    # point_cloud[:, 0] = point_cloud[:, 0] / d
-    # point_cloud[:, 1] = point_cloud[:, 1] / d
-    # point_cloud[:, 2] = point_cloud[:, 2] / d
-    # Apply K
-    point_cloud[:, :3] = apply_transformation(point_cloud[:, :3], K, np.zeros(3))
-    point_cloud[:, 0] /= d
-    point_cloud[:, 1] /= d
-    # point_cloud[:, 2] = d
+    if max_threshold is not None:
+        point_clouds = [
+            remove_points_above_z(point_cloud, z_threshold=max_threshold) for point_cloud in point_clouds
+        ]
 
-    # print(point_cloud[0])
-    return point_cloud
+    if remove_plane and depth_frame is not None:
+        plane = identify_plane(depth_frame)
+
+        if plane is not None:
+            point_clouds = [
+                remove_under_plane(plane, point_cloud) for point_cloud in point_clouds
+            ]
+
+    return point_clouds

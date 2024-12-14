@@ -4,7 +4,7 @@ from scipy.spatial import cKDTree
 np.set_printoptions(precision=15)
 
 
-def find_closest_point(reference_point_cloud, other_point_cloud, option="np"):
+def find_closest_point(reference_point_cloud, other_point_cloud, option="np", exclude_first=False):
     """
     Find correspondences between two point clouds by finding the closest point
     in reference_point_cloud for each point in other_point_cloud using KDTree or linalg.norm
@@ -20,7 +20,12 @@ def find_closest_point(reference_point_cloud, other_point_cloud, option="np"):
     if option == "ckd":
         # Uncomment if using KDTree for fast nearest neighbor search
         tree = cKDTree(reference_point_cloud)
-        distances, indices = tree.query(other_point_cloud)
+        if exclude_first:
+            distances, indices = tree.query(other_point_cloud, k=2)
+            distances = distances[:, 1]
+            indices = indices[:, 1]
+        else:
+            distances, indices = tree.query(other_point_cloud)
         return np.array(indices), np.array(distances)
 
     elif option == "np":
