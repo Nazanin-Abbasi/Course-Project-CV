@@ -52,6 +52,7 @@ def identify_plane(image):
     fig, ax = plt.subplots()
     ax.imshow(image)
     fig.canvas.mpl_connect('button_press_event', on_click)
+    plt.title("Click on a plane to remove it and anything under it")
     plt.show()
     if clicked_coordinates[0] == (0, 0):
         return None

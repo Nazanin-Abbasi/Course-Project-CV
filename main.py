@@ -20,7 +20,7 @@ if __name__ == "__main__":
     DOWNSAMPLE_COLOR = 2
     MIN_DEPTH = 3500
     MAX_DEPTH = 6000
-    REMOVE_PLANE = True
+    REMOVE_PLANE = False
 
     # INPUT_DIRECTORY = "Data/lama/"
     # OUTPUT_FILENAME = "lama_point_cloud_dec_14.npy"
